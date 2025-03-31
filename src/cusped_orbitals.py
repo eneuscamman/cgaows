@@ -1,6 +1,6 @@
 import numpy as np
-from . import basis_set_info
-from . import integrand_at_rtp
+import basis_set_info
+import integrand_at_rtp
 from scipy.integrate import dblquad, fixed_quad
 from scipy.optimize import minimize
 from scipy.spatial import distance
@@ -739,6 +739,8 @@ def get_cusped_orb_info(options, input_path, save_pkl=False):
       save_pkl - if True save option to pkl file ONLY (for testing),
                  else save to individual *.txt files
   """
+
+  print("Path to save cusp parameters:", input_path)
 
   # update dictionary with specific basis set information 
   options = basis_set_info.make_full_input(options) 

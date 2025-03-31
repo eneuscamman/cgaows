@@ -7,20 +7,39 @@
 #### Calculating cusp parameters in PYTHON ####
 ###############################################
 
-1.) Example input for neon provided in examples/neon/input.py 
-    containing the minimum required information needed
+1.) To test the calculation of the cusp parameters via 
+    python in the base cgaows/ directory run:
+
+    >> python -m examples.neon.test_cusp_params
+
+    this generates, and saves to files in the output path 
+    defined in examples/neon/test_cusp_params.py, all the 
+    cusping parameters that would by provided to a VMC
+    sampling framework
+
+    The unittest compares the newly calculated set of cusp 
+    parameters (cusp_coeff_mat.txt) to the reference result 
+    in example/neon/cusp_coeff_mat.txt. All txt files could 
+    be compare, however that is not currently implemented
+
+    Note: this step uses multiprocessing to calculate
+          the cusp parameters. With multiprocessing this 
+          step takes ~10s on a desktop
+
+2.) An example input for neon is provided in 
+    examples/neon/input.py, containing the minimum 
+    required information needed
     (ie nuclear positions, nuclear charges, basis set)
 
-    To replicate example, in examples/neon/:
-       Call "input.py" to generate the cusp information as txt 
-       files which will then be read into  C++ code. 
+    To reproduce the reference data used to compare the 
+    result of the unittest in 1.), in examples/neon/ run:
+
+    >> python input.py
+
+    to generate the cusp information as txt 
+    files which will then be read into  C++ code. 
 
     # Not sure if this is True?? - TKQ
-    #You need to have multiprocessing functional in your python set up.
-
-2.) To test the calculation of the cusp parameters via python 
-    unittest (in src/cusped_orbital.py):
-    >> python example/neon/test_cusp_params.py 
 
 ###############################################
 ############## Running C++ Code ###############

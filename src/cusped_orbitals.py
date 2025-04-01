@@ -79,11 +79,8 @@ def pyscf_result(z_array, all_nuc_xyz, basis_set):
   s = mol.intor('int1e_ovlp')
   t = mol.intor('int1e_kin')
   v = mol.intor('int1e_nuc')
-  pyscf_1e_energy = t + v
 
-  orb_coeff = my_hf.mo_coeff
   occ_orb_coeff = my_hf.mo_coeff[:,my_hf.mo_occ > 0.]
-  virt_orb_coeff = my_hf.mo_coeff[:,my_hf.mo_occ == 0.]
 
   pm_loc_orb = lo.PM(mol, mo_coeff=occ_orb_coeff) #, pop_method='mulliken') # Pipek-Mezey
   pm_loc_orb.pop_method = 'mulliken'
@@ -99,40 +96,33 @@ def pyscf_result(z_array, all_nuc_xyz, basis_set):
   return np.asarray(fb_loc_orb.kernel(occ_orb_coeff), order='C')
 
 def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
-  """
-  Determine basis specific parmeters for each AO:
-  rc_matrix --- nuc x AO matrix of cusp radii for each AO (nuc x AOs)
+  """ Determines the basis specific parmeters for each AO:
+
+  returns:
+
+       rc_matrix --- nuc x AO matrix of cusp radii for each AO (nuc x AOs)
   orth_orb_array --- array with non-zero values indicate that orb will be orthogonalized against it's core, value = (core index + 1)
+
   """
   num_AOs = int(len(basis_orb_type))
-  #print("num of AOs ",num_AOs)
-  rc_matrix = np.zeros((len(Z_array), num_AOs))
   rc_matrixv2 = np.zeros((len(Z_array), num_AOs))
   orth_orb_array = np.zeros(num_AOs, dtype=int)
 
   add_count = count = 0 
 
   nonH_nuc_ind = np.where(Z_array > 1.0)[0] # nuc ind of Z>1
-  #print("nonH_nuc_ind", nonH_nuc_ind)
 
   for i, Z in enumerate(Z_array.reshape(-1)):   # loop through nuclei - and each orb for columns
     on_center_ind = np.where(basis_centers == i)[0]
-    #print(i, Z, "on center index", on_center_ind)
 
     if basis == str('sto-3g') or basis == str('STO-3G'):
       if Z == 1.0:                # hydrogen
         add_count = count + 1
-        default_1s_cusp = 0.2 # 0.1
-        def_1s_cusp_offCenter = 0.1
 
-        rc_matrix[i, :] = default_1s_cusp
         orth_orb_array[count+0] = count+1      # 1s (3G)
       elif Z in {3., 4., 5., 6., 7., 8., 9., 10.}:              # carbon
         add_count = count + 5
-        default_1s_cusp = 0.075   # TODO optimize cusp value
-        def_1s_cusp_offCenter = 0.0035
 
-        rc_matrix[i, :] = default_1s_cusp
         orth_orb_array[count+1] = count+1      # orthogonalize the 2s orb against 1s core
       else:
         raise RuntimeError("STO-3G: Z", Z, "not identified in cusp_orbitals.set_basis_orb_info")
@@ -140,13 +130,7 @@ def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
     elif basis == str('6-31G') or basis == str('6-31g'):
       if Z == 1.0:                # hydrogen    1s(3G), 2s_orth(1G)
         add_count = count + 2
-        default_s_cusp = 0.15
-        default_p_cusp = 0.075
-        core_1s_cusp = 0.20
         
-        rc_matrix[i, :] = default_s_cusp
-        rc_matrix[i, on_center_ind] = core_1s_cusp
-       
         rc_matrixv2[i, :] = 0.2
         for ind in nonH_nuc_ind :
           nonH_bf_ind = np.where(basis_centers == ind)[0]
@@ -164,12 +148,7 @@ def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
         orth_orb_array[count+1] = count+1      # orthogonalize 1s (1G) against 1s (3G)
       elif Z > 1.:              # carbon
         add_count = count + 9
-        default_s_cusp = 0.2
-        default_p_cusp = 0.0
-        core_1s_cusp = 0.1
 
-        rc_matrix[i, :] = default_s_cusp # set nuc row to default
-        rc_matrix[i, count+3:add_count] = default_p_cusp # zero out porbs
         bf_centered_node = np.where(basis_orb_type[on_center_ind].flatten() > 1)[0] + on_center_ind[0]    # where oncenter p/d orbs and shift to where in full bf list
         rc_matrixv2[i, :] = 0.2
         for ind in nonH_nuc_ind :
@@ -192,13 +171,7 @@ def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
 
       if Z == 1.0:                # hydrogen
         add_count = count + 2
-        default_s_cusp = 0.2
-        default_p_cusp = 0.075
-        core_1s_cusp = 0.20
         
-        rc_matrix[i, :] = default_s_cusp
-        rc_matrix[i, on_center_ind] = core_1s_cusp
-       
         rc_matrixv2[i, :] = 0.2
         for ind in nonH_nuc_ind:
           nonH_bf_ind = np.where(basis_centers == ind)[0]
@@ -215,14 +188,7 @@ def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
         orth_orb_array[count+1] = count+1      # orthogonalize 1s (1G) against 1s (3G)
       elif Z in np.arange(2., 11.):              # carbon
         add_count = count + 14
-        default_s_cusp = 0.2
-        default_p_cusp = 0.0
-        default_d_cusp = 0.0
-        core_1s_cusp = 0.1
 
-        rc_matrix[i, :] = default_s_cusp # set nuc row to default
-        rc_matrix[i, count+3:add_count] = default_p_cusp # zero out porbs
-       
         bf_centered_node = np.where(basis_orb_type[on_center_ind].flatten() > 1)[0] + on_center_ind[0]    # where oncenter p/d orbs and shift to where in full bf list
         rc_matrixv2[i, :] = 0.2
         for ind in nonH_nuc_ind:
@@ -241,14 +207,7 @@ def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
         orth_orb_array[count+1:count+3] = count+1      # orthogonalize the s orbs against 1s core
       elif Z in np.arange(11., 19.): # third row 
         add_count = count + 18
-        default_s_cusp = 0.2
-        default_p_cusp = 0.0
-        default_d_cusp = 0.0
-        core_1s_cusp = 0.1
 
-        rc_matrix[i, :] = default_s_cusp # set nuc row to default
-        rc_matrix[i, count+3:add_count] = default_p_cusp # zero out porbs
-       
         bf_centered_node = np.where(basis_orb_type[on_center_ind].flatten() > 1)[0] + on_center_ind[0]    # where oncenter p/d orbs and shift to where in full bf list
         rc_matrixv2[i, :] = 0.05
         for ind in nonH_nuc_ind:
@@ -271,13 +230,26 @@ def set_basis_orb_info(basis, basis_orb_type, basis_centers, Z_array):
       break
     count = add_count
   
-  #print("in set info orth_orb_array (shifted): ", orth_orb_array, flush=True) 
   return rc_matrixv2, orth_orb_array
 
 def get_proj_mat(basis_centers, orth_orb_array, all_nuc_xyz, z_array, basis_orb_type, basis_exp, basis_coeff):
+  """ Calculate the AO x AO matrix identifying overlap between core AO (rows) and AO of the Gram-Schmidt orthogonalized (column) orbs
+
+  params:
+    basis_centers - norb array indicating the nucleus (by index) each ao is centered on
+   orth_orb_array - norb array with non-0 on of ao indices being orthogonalized, value = index+1 of orb to orthogonalize against 
+      all_nuc_xyz - xyz coords 
+          z_array - num_nuv array of atom charges 
+   basis_orb_type - norb array of basis type (ie. 1s = 0, 2s = 1, 2px = 2, 2py = 3, ...)
+        basis_exp - basis set specific exponents of the primitive for each nuc
+      basis_coeff - basis set specific coefficients of the primitive for each nuc
+
+  return:
+      proj_ao_mat - ao x ao array, non-0 only for overlap between Ns and it's 1s core
+                    this results in most of the matrix being 0s, could make more efficient
+
   """
-  AO x AO matrix to calculate overlap between core AO (rows) and AO to orthogonalize (column)
-  """
+
   proj_ao_mat = np.zeros((len(basis_centers), len(basis_centers)))
 
   for nuc_ind, Z in enumerate(z_array):
@@ -302,11 +274,12 @@ def get_proj_mat(basis_centers, orth_orb_array, all_nuc_xyz, z_array, basis_orb_
   return proj_ao_mat
 
 def get_proj_2_1(basis_center, integration_center, alpha_1, d_1, alpha_2, d_2):
-    """
-      orthogonalize AO2 against AO1: 	 proj = < AO2 | AO1 > 
-       				        	_____________
+    """ This function was written by Sonja Bumann
 
-       				        	< AO1 | AO1 > 
+      orthogonalize AO2 against AO1: 	 proj = < AO2 | AO1 > 
+       				        	                      _____________
+
+       				        	                      < AO1 | AO1 > 
     """
     proj_2_1 = 0.0
     norm_1 = 0.0
@@ -326,9 +299,21 @@ def get_proj_2_1(basis_center, integration_center, alpha_1, d_1, alpha_2, d_2):
     return proj_2_1
 
 def orth_transform(orth, proj, nnuc, basis_centers, num_bf):
-  """
-  change of basis matrix for orthogonalized orbitals in cusping scheme
-  return matrix to change basis to orth orbs 
+  """ change of basis matrix for orthogonalized orbitals in cusping scheme
+
+  In simple_vmc.py, initializing the calculation will require change of basis in C (orbital coeffs)
+    and in the evaluation of the orbitals during sampling (X) 
+    AKA:
+              X' C' = (X B) (B_inv C)  <- cusp ready basis
+
+  params:
+             orth - norb array with non-0 on of ao indices being orthogonalized
+             proj - ao x ao array, non-0 only for overlap between Ns and it's 1s core
+             nnuc - number of nuclei 
+    basis_centers - norb array indicating the nucleus (by index) each ao is centered on 
+           num_bf - number of AOs 
+  return 
+                B - change of basis matrix to orth orbs 
   """
   B = np.identity(num_bf)    # AOs x new AOs
 
@@ -387,17 +372,10 @@ def get_a0_matrix(options):
           Z = int(z_array[basis_center_ind[0]]) 
           ao_max = max_orb_info[Z][ao_type[0]]
 
-          #print("nuc, orb, val, ao_max: ", i, j, val, ao_max, flush=True)
-
           ao_on_nuc = np.abs(val/ao_max)
 
           if (ao_on_nuc > 10e-16) and (r_cusp > 0.0):
             final_a0_matrix[i][j] = 1.0
-          #else:
-            #print("too small (< 10e-16) gaussian value or 0.0 cusp radius",i,j, '%.10f' % ao_on_nuc) 
-
-        #else:
-        #  print("no cusp on atom centered p or d orb: ",i,j, val) 
 
   return final_a0_matrix
 
@@ -455,6 +433,7 @@ def gaussian_info_and_eval(nuc_ind, ao_ind, options, get_bf=None): #, add_to_out
       xyz_eval = basis_center_xyz
     else:
       raise RuntimeError('get_bf input in gaussian_r_val is not valid')
+
     # returns bf value over indicated nuclei
     bf_vals = gaussian_r_val(xyz_eval, ao_type, alpha_core, d_core, basis_center_xyz, nuc_xyz, alpha, d, on_center, orth_orb_shifted, proj, get_max)
     return ij, all_nuc_xyz, nuc_xyz, ao_type, basis_center_ind, on_center, basis_center_xyz, alpha, d, r_cusp, orth_orb_shifted, core_ind, alpha_core, d_core, proj, bf_vals
@@ -708,23 +687,21 @@ def cusp_coeff_vec(ij, all_nuc_xyz, nuc_xyz, orb_type, basis_center_ind, on_cent
 
 
 def get_cusp_coeff_matrix(options): # or input options which ontains cusp_a0
-  """ order_n_list = list of bth order terms to add to slater cusp
+  """ calculate all 7 primitives needed to defind the slater expanded cusping function for each nuc/AO pair 
+
+  Note: order_n_list = list of bth order terms to add to slater cusp
+
   return [ n, num_orb, num_nuc, ] of Q_i coeffs for each cusp (ao over nuc)
- 
   """
   order_n_list = options['order_n_list']
   # reassign if on savio or work computer
   num_cores = cpu_count()
-  #print("NUM of CORES:", num_cores)
   a0_ind_to_opt = np.argwhere(np.abs(options["cusp_a0"]) > 0.)
   cusp_coeff_mat = np.zeros((options["cusp_a0"].shape[0], options["cusp_a0"].shape[1], len(order_n_list) ))  # [ num_qi_coeffs, num_orb, num_nuc, ]
   input_info = [gaussian_info_and_eval(*ij, options) + (options['Z'][(ij[0])], options["cusp_a0"][(ij[0]),(ij[1])], order_n_list) for ij in a0_ind_to_opt]  # each element of list is info coresponding to a single orb/nuc pair
  
-  #if __name__ == '__main__':
-    #multiprocessing.freeze_support()
   with Pool(num_cores) as p:
     all_coeff_vecs = p.starmap(cusp_coeff_vec, input_info) # returns orb_ind, nuc_ind, normed_coeff_vec
-    #coeff_vec_list.append(all_coeff_vecs)
 
   for val in all_coeff_vecs:
     cusp_coeff_mat[val[0], val[1], :] = val[-1] # assign coeff vector to corresponding a0 nuc/orb/indice

@@ -39,8 +39,6 @@
     to generate the cusp information as txt 
     files which will then be read into  C++ code. 
 
-    # Not sure if this is True?? - TKQ
-
 ###############################################
 ############## Running C++ Code ###############
 ###############################################
